@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2026 제주도 가족여행</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f28c5b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="제주여행">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root { --d1:#fde2d2; --d2:#c9ede2; --d3:#fdf3c4; --d4:#e6d6f5; --ink:#222; --muted:#666; }
@@ -43,13 +49,20 @@
   #budget .sum small { color:var(--muted); }
   #budget button { border:0; border-radius:8px; padding:6px 10px; background:#eee; cursor:pointer; font:inherit; }
   .wrap { overflow-x:auto; }
+  #wx { display:flex; gap:6px; overflow-x:auto; margin:0 0 14px; }
+  #wx .d { flex:1; min-width:78px; background:#fff; border-radius:10px; padding:8px 4px; text-align:center; font-size:.8rem; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+  #wx .d .i { font-size:1.5rem; } #wx .d .t { font-weight:700; } #wx .d small { color:var(--muted); }
+  #wx .msg { font-size:.8rem; color:var(--muted); padding:8px; }
+  .leaflet-popup-content .act a { display:inline-block; margin:6px 6px 0 0; padding:4px 8px; border-radius:6px; background:#f0f0f0; text-decoration:none; color:#222; font-size:.85rem; }
+  #install { display:none; margin:8px auto 0; font-size:.8rem; color:var(--muted); text-align:center; }
   .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
 </style>
 </head>
 <body>
-<header><h1>🍊 2026 제주도 가족여행</h1><div class="clock" id="clock"></div></header>
+<header><h1>🍊 2026 제주도 가족여행</h1><div class="clock" id="clock"></div><div id="install">📱 홈 화면에 추가: iPhone은 공유 → "홈 화면에 추가", Android는 메뉴 → "홈 화면에 추가"</div></header>
 <main>
   <section id="now"></section>
+  <div id="wx"><div class="msg">날씨 불러오는 중…</div></div>
   <div id="map"></div>
   <nav class="tabs" id="tabs"></nav>
   <section id="days"></section>
@@ -70,21 +83,21 @@ const DAYS = [
   { s:'',      e:'06:30', n:'김포공항 집결' },
   { s:'07:50', e:'09:00', n:'제주공항', lat:33.5066, lng:126.4929 },
   { s:'09:00', e:'09:30', n:'렌트카' },
-  { s:'10:00', e:'11:00', n:'섬누들 (아침식사)', m:'고사리육개장 10,000 / 고기국수 11,000 / 돌문어기름국수 14,000', lat:33.4640, lng:126.3130, q:1 },
+  { s:'10:00', e:'11:00', n:'섬누들 (아침식사)', tel:'0507-1351-0649', m:'제주시 명주길 26-16 · 고사리육개장 10,000 / 고기국수 11,000 / 돌문어기름국수 14,000', lat:33.4640, lng:126.3130, q:1 },
   { s:'11:40', e:'12:10', n:'한담해안 산책로', lat:33.4611, lng:126.3090 },
-  { s:'12:40', e:'14:10', n:'애월 랜디스도넛', lat:33.4626, lng:126.3103, q:1 },
-  { s:'12:40', e:'14:10', n:'도치돌 알파카 목장', m:'1시간30분 · 입장료 15,000', lat:33.4180, lng:126.3950, q:1 },
-  { s:'14:30', e:'15:30', n:'은혜전복 (점심식사)', m:'전복돌솥밥·전복뚝배기·전복물회 17,000', lat:33.4795, lng:126.4090, q:1 },
+  { s:'12:40', e:'14:10', n:'애월 랜디스도넛', tel:'064-799-0610', lat:33.4626, lng:126.3103, q:1 },
+  { s:'12:40', e:'14:10', n:'도치돌 알파카 목장', tel:'064-799-6690', m:'애월읍 도치돌길 303 · 1시간30분 · 입장료 15,000', lat:33.4180, lng:126.3950, q:1 },
+  { s:'14:30', e:'15:30', n:'은혜전복 (점심식사)', tel:'0507-1432-9060', m:'애월읍 애월로1길 24-3 · 전복돌솥밥·전복뚝배기·전복물회 17,000', lat:33.4795, lng:126.4090, q:1 },
   { s:'16:00', e:'16:00', n:'체크인' },
-  { s:'16:00', e:'18:00', n:'숙소 패밀리가든빌리지 (수영)', m:'제주시 우령서로16길 54-22 · 숙소 풀장에서 물놀이', lat:33.4845, lng:126.4212 },
+  { s:'16:00', e:'18:00', n:'숙소 패밀리가든빌리지 (수영)', tel:'070-4468-1612', m:'제주시 우령서로16길 54-22 · 숙소 풀장에서 물놀이', lat:33.4845, lng:126.4212 },
   { s:'16:00', e:'18:00', n:'하귀농협하나로마트', m:'저녁 장보기', lat:33.4770, lng:126.4045, q:1 },
   { s:'18:00', e:'20:00', n:'바베큐 (저녁식사)', m:'숯·그릴 사용료 4인 4만원 / 추가 1인 5천원' },
  ]},
  { date:'2026-09-08', label:'9/8 (화)', color:'var(--d2)', events:[
   { s:'09:30', e:'10:00', n:'숙소 출발' },
-  { s:'10:00', e:'12:00', n:'아르떼 키즈카페', m:'2시간 · 30,000 / 보호자 12,000 · 선택관광(2그룹)', lat:33.4030, lng:126.3465, q:1 },
-  { s:'10:00', e:'12:00', n:'곶자왈 도립공원', m:'1시간 · 입장료 1,000 · 선택관광(2그룹)', lat:33.3020, lng:126.2967 },
-  { s:'12:20', e:'13:30', n:'운정이네 중문본점 (점심식사)', m:'서귀포시 중산간서로 726 · 순살갈치조림+전복돌솥밥+옥돔구이 25,000 (전복돌솥밥 15,000)', lat:33.2636, lng:126.4378 },
+  { s:'10:00', e:'12:00', n:'아르떼 키즈카페', tel:'1899-5008', m:'아르떼뮤지엄 어림비로 478 · 2시간 · 30,000 / 보호자 12,000 · 선택관광(2그룹)', lat:33.4030, lng:126.3465, q:1 },
+  { s:'10:00', e:'12:00', n:'곶자왈 도립공원', tel:'064-792-6047', m:'대정읍 에듀시티로 178 · 1시간 · 입장료 1,000 · 선택관광(2그룹)', lat:33.2920, lng:126.2844 },
+  { s:'12:20', e:'13:30', n:'운정이네 중문본점 (점심식사)', tel:'0507-1350-3883', m:'서귀포시 중산간서로 726 · 순살갈치조림+전복돌솥밥+옥돔구이 25,000 (전복돌솥밥 15,000)', lat:33.2636, lng:126.4378 },
   { s:'14:00', e:'15:00', n:'천지연폭포', m:'40분 · 성인 2,000 / 소인 1,000', lat:33.2470, lng:126.5580 },
   { s:'15:30', e:'17:00', n:'매일올레시장', m:'구경하고 먹고 포장하기 / 달인수산 회포장(얼음포장 가능)', lat:33.2503, lng:126.5630 },
   { s:'17:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
@@ -92,17 +105,17 @@ const DAYS = [
  ]},
  { date:'2026-09-09', label:'9/9 (수)', color:'var(--d3)', events:[
   { s:'09:30', e:'10:00', n:'숙소 출발' },
-  { s:'10:00', e:'12:00', n:'아침미소목장', m:'2시간 · 입장료 없음, 체험비 발생', lat:33.4640, lng:126.5710, q:1 },
-  { s:'12:30', e:'14:00', n:'고집돌우럭 (점심식사)', m:'산해진미 中 33,000', lat:33.5405, lng:126.6660, q:1 },
+  { s:'10:00', e:'12:00', n:'아침미소목장', tel:'064-727-2545', m:'제주시 첨단동길 160-20 · 2시간 · 입장료 없음, 체험비 발생', lat:33.4601, lng:126.5705 },
+  { s:'12:30', e:'14:00', n:'고집돌우럭 함덕점 (점심식사)', tel:'0507-1353-6061', m:'조천읍 신북로 491-9 2층 · 산해진미 中 33,000', lat:33.5405, lng:126.6660, q:1 },
   { s:'12:30', e:'14:00', n:'선물고팡 기념품샵', lat:33.5420, lng:126.6680, q:1 },
-  { s:'14:10', e:'14:40', n:'함덕 잠수함', m:'30분 · 네이버 예약가 대인 28,000 / 소인 23,000 · 희망팀만', lat:33.5430, lng:126.6690, q:1 },
-  { s:'14:10', e:'15:30', n:'함덕해수욕장, 델문도카페', m:'나머지는 델문도', lat:33.5434, lng:126.6700 },
-  { s:'15:50', e:'17:00', n:'제주레포츠랜드', m:'카트 1회 약 10분 · 단거리 25,000 / 장거리 35,000 (연이어 체험시 50%할인)', lat:33.4642, lng:126.6537, q:1 },
+  { s:'14:10', e:'14:40', n:'함덕 잠수함', tel:'064-783-1334', m:'조함해안로 378 · 30분 · 네이버 예약가 대인 28,000 / 소인 23,000 · 희망팀만', lat:33.5430, lng:126.6690, q:1 },
+  { s:'14:10', e:'15:30', n:'함덕해수욕장, 델문도카페', tel:'064-702-0007', m:'델문도 조함해안로 519-10 · 나머지는 델문도', lat:33.5426, lng:126.6704 },
+  { s:'15:50', e:'17:00', n:'제주레포츠랜드', tel:'064-784-8800', m:'조천읍 와흘상서2길 47 · 카트 1회 약 10분 · 단거리 25,000 / 장거리 35,000 (연이어 체험시 50%할인)', lat:33.4642, lng:126.6537, q:1 },
   { s:'17:00', e:'17:30', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
   { s:'18:30', e:'20:00', n:'김치찜 (저녁식사)', m:'돼지고기 김치찜으로 저녁' },
  ]},
  { date:'2026-09-10', label:'9/10 (목)', color:'var(--d4)', events:[
-  { s:'08:30', e:'09:30', n:'진정성 / 새우리 포장', m:'딱새우김밥 7,500 / 새우리모듬튀김 6,500 / 오리지널 골드 밀크티 8,500 · 새우리 064-900-2527 예약 · 진정성-밀크티', lat:33.4880, lng:126.4810, q:1 },
+  { s:'08:30', e:'09:30', n:'진정성 / 새우리 포장', tel:'064-900-2527', m:'새우리 제주시 무근성7길 21 (김밥·튀김, 예약) / 진정성 종점 이호 서해안로 124 (밀크티, 064-747-7674) · 딱새우김밥 7,500 / 모듬튀김 6,500 / 골드 밀크티 8,500', lat:33.5146, lng:126.5205 },
   { s:'10:00', e:'10:20', n:'체크아웃' },
   { s:'10:20', e:'10:40', n:'도두동 무지개 해안도로', m:'단체사진', lat:33.5100, lng:126.4680 },
   { s:'10:50', e:'11:20', n:'렌트카 반납' },
@@ -164,7 +177,16 @@ DAYS.forEach((d,di) => { let k=0; d.events.forEach(ev => {
   if (ev.lat == null) return; k++;
   const icon = L.divIcon({className:'', html:`<div class="pin" style="border-color:${dayHex[di]};color:${dayHex[di]}">${k}</div>`, iconSize:[26,26], iconAnchor:[13,13]});
   ev.marker = L.marker([ev.lat, ev.lng], {icon}).addTo(map)
-    .bindPopup(`<b>${ev.n}</b>${ev.q?' <small>(위치 대략)</small>':''}<br>${d.label} ${fmt(ev)}${ev.m?`<br><small>${ev.m}</small>`:''}<br><a target="_blank" href="https://map.naver.com/p/search/${encodeURIComponent(ev.n.replace(/\s*\(.*\)/,''))}">네이버지도</a>`);
+    .bindPopup(() => {
+      const nm = ev.n.replace(/\s*\(.*\)/,'');
+      const acts = [
+        ev.tel ? `<a href="tel:${ev.tel}">📞 ${ev.tel}</a>` : '',
+        `<a target="_blank" href="https://map.kakao.com/link/to/${encodeURIComponent(nm)},${ev.lat},${ev.lng}">🚗 카카오내비</a>`,
+        `<a href="nmap://route/car?dlat=${ev.lat}&dlng=${ev.lng}&dname=${encodeURIComponent(nm)}&appname=fam-jeju-trip">🚗 네이버</a>`,
+        `<a target="_blank" href="https://map.naver.com/p/search/${encodeURIComponent(nm)}">🔍 네이버지도</a>`,
+      ].join('');
+      return `<b>${ev.n}</b>${ev.q?' <small>(위치 대략)</small>':''}<br>${d.label} ${fmt(ev)}${ev.m?`<br><small>${ev.m}</small>`:''}<div class="act">${acts}</div>`;
+    }, {maxWidth:280});
   markers.push(ev.marker);
 });});
 if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
@@ -187,6 +209,25 @@ function show(di) {
 // 오늘 날짜의 탭 기본 선택, 아니면 첫날
 const today = ymd(KST()); show(Math.max(0, DAYS.findIndex(d => d.date === today)));
 renderNow(); setInterval(renderNow, 30000);
+
+// ===== 날씨 (Open-Meteo, 키 불필요) =====
+(async () => {
+  const $wx = document.getElementById('wx');
+  const WMO = c => c===0?'☀️':c<=2?'🌤️':c===3?'☁️':c<=49?'🌫️':c<=57?'🌦️':c<=67?'🌧️':c<=77?'🌨️':c<=82?'🌧️':c<=86?'🌨️':'⛈️';
+  try {
+    const u = 'https://api.open-meteo.com/v1/forecast?latitude=33.45&longitude=126.5&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=16';
+    const r = await fetch(u); const j = await r.json(); const D = j.daily;
+    const trip = DAYS.map(d=>d.date); let idx = D.time.map((t,i)=>trip.includes(t)?i:-1).filter(i=>i>=0);
+    let note = '';
+    if (!idx.length) { idx = D.time.map((_,i)=>i).slice(0,7); note = `<div class="msg">여행일 예보는 8월 말부터 나와요. 지금 제주 날씨 ↓</div>`; }
+    $wx.innerHTML = note + idx.map(i => `<div class="d"><small>${D.time[i].slice(5).replace('-','/')}</small><div class="i">${WMO(D.weather_code[i])}</div><div class="t">${Math.round(D.temperature_2m_max[i])}° <small>/ ${Math.round(D.temperature_2m_min[i])}°</small></div><small>☔ ${D.precipitation_probability_max[i]}%</small></div>`).join('');
+    localStorage.setItem('jeju-wx', $wx.innerHTML);
+  } catch (e) { $wx.innerHTML = localStorage.getItem('jeju-wx') || '<div class="msg">날씨 정보를 불러올 수 없어요 (오프라인?)</div>'; }
+})();
+
+// ===== 오프라인 / PWA =====
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if (!matchMedia('(display-mode: standalone)').matches && !navigator.standalone) document.getElementById('install').style.display = 'block';
 
 // ===== 예산 =====
 // a/c: 성인/소인 단가, na/nc: 인원, f: 정액(팀 전체)
