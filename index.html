@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 제주도 가족여행</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --d1:#fde2d2; --d2:#c9ede2; --d3:#fdf3c4; --d4:#e6d6f5; --ink:#222; --muted:#666; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; color:var(--ink); background:#fafafa; }
+  header { text-align:center; padding:16px 12px 8px; }
+  header h1 { margin:0; font-size:1.4rem; }
+  header .clock { color:var(--muted); font-size:.85rem; margin-top:4px; }
+  main { max-width:960px; margin:0 auto; padding:0 12px 40px; }
+  #now { border-radius:14px; padding:14px 16px; margin:8px 0 14px; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.08); border-left:8px solid #999; }
+  #now .label { font-size:.75rem; letter-spacing:.08em; color:var(--muted); }
+  #now .title { font-size:1.35rem; font-weight:700; margin:2px 0; }
+  #now .time { color:var(--muted); }
+  #now .note { margin-top:6px; font-size:.9rem; }
+  #now .next { margin-top:8px; padding-top:8px; border-top:1px dashed #ddd; font-size:.85rem; color:var(--muted); }
+  #map { height:min(60vh,480px); border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
+  .tabs { display:flex; gap:6px; margin:14px 0 8px; }
+  .tabs button { flex:1; border:0; border-radius:10px; padding:10px 4px; font-weight:700; cursor:pointer; opacity:.55; font-size:.9rem; }
+  .tabs button.on { opacity:1; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+  .day { display:none; } .day.on { display:block; }
+  .ev { display:grid; grid-template-columns:96px 1fr; gap:10px; padding:10px 12px; background:#fff; border-radius:10px; margin-bottom:6px; cursor:pointer; }
+  .ev.past { opacity:.5; } .ev.now { outline:3px solid #ff7a59; }
+  .ev .t { font-variant-numeric:tabular-nums; color:var(--muted); font-size:.85rem; }
+  .ev .n { font-weight:600; } .ev .m { font-size:.82rem; color:var(--muted); margin-top:2px; }
+  .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
+</style>
+</head>
+<body>
+<header><h1>🍊 2026 제주도 가족여행</h1><div class="clock" id="clock"></div></header>
+<main>
+  <section id="now"></section>
+  <div id="map"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <section id="days"></section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ===== 일정 데이터 (여기만 고치면 됨) =====
+// lat/lng 없으면 지도엔 안 찍히고 목록에만 나옴. ?: 대략적인 위치 → 확인 필요.
+const DAYS = [
+ { date:'2026-09-07', label:'9/7 (월)', color:'var(--d1)', events:[
+  { s:'',      e:'06:30', n:'김포공항 집결' },
+  { s:'07:50', e:'09:00', n:'제주공항', lat:33.5066, lng:126.4929 },
+  { s:'09:00', e:'09:30', n:'렌트카' },
+  { s:'10:00', e:'11:00', n:'섬누들 (아침식사)', m:'고사리육개장 10,000 / 고기국수 11,000 / 돌문어기름국수 14,000', lat:33.4640, lng:126.3130, q:1 },
+  { s:'11:40', e:'12:10', n:'한담해안 산책로', lat:33.4611, lng:126.3090 },
+  { s:'12:40', e:'14:10', n:'애월 랜디스도넛', lat:33.4626, lng:126.3103, q:1 },
+  { s:'12:40', e:'14:10', n:'도치돌 알파카 목장', m:'1시간30분 · 입장료 15,000', lat:33.4180, lng:126.3950, q:1 },
+  { s:'14:30', e:'15:30', n:'은혜전복 (점심식사)', m:'전복돌솥밥·전복뚝배기·전복물회 17,000', lat:33.4795, lng:126.4090, q:1 },
+  { s:'16:00', e:'16:00', n:'체크인' },
+  { s:'16:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 물놀이', lat:33.4770, lng:126.4100, q:1 },
+  { s:'16:00', e:'18:00', n:'하귀농협하나로마트', m:'저녁 장보기', lat:33.4770, lng:126.4045, q:1 },
+  { s:'18:00', e:'20:00', n:'바베큐 (저녁식사)', m:'숯·그릴 사용료 4인 4만원 / 추가 1인 5천원' },
+ ]},
+ { date:'2026-09-08', label:'9/8 (화)', color:'var(--d2)', events:[
+  { s:'09:30', e:'10:00', n:'숙소 출발' },
+  { s:'10:00', e:'12:00', n:'아르떼 키즈카페', m:'2시간 · 30,000 / 보호자 12,000 · 선택관광(2그룹)', lat:33.4030, lng:126.3465, q:1 },
+  { s:'10:00', e:'12:00', n:'곶자왈 도립공원', m:'1시간 · 입장료 1,000 · 선택관광(2그룹)', lat:33.3020, lng:126.2967 },
+  { s:'12:20', e:'13:30', n:'운정이네 (점심식사)', m:'순살갈치조림+전복돌솥밥+옥돔구이 25,000 (전복돌솥밥 15,000)', lat:33.2540, lng:126.6110, q:1 },
+  { s:'14:00', e:'15:00', n:'천지연폭포', m:'40분 · 성인 2,000 / 소인 1,000', lat:33.2470, lng:126.5580 },
+  { s:'15:30', e:'17:00', n:'매일올레시장', m:'구경하고 먹고 포장하기 / 달인수산 회포장(얼음포장 가능)', lat:33.2503, lng:126.5630 },
+  { s:'17:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
+  { s:'19:00', e:'20:30', n:'회포장 (저녁식사)', m:'포장해 온 음식으로 저녁' },
+ ]},
+ { date:'2026-09-09', label:'9/9 (수)', color:'var(--d3)', events:[
+  { s:'09:30', e:'10:00', n:'숙소 출발' },
+  { s:'10:00', e:'12:00', n:'아침미소목장', m:'2시간 · 입장료 없음, 체험비 발생', lat:33.4640, lng:126.5710, q:1 },
+  { s:'12:30', e:'14:00', n:'고집돌우럭 (점심식사)', m:'산해진미 中 33,000', lat:33.5405, lng:126.6660, q:1 },
+  { s:'12:30', e:'14:00', n:'선물고팡 기념품샵', lat:33.5420, lng:126.6680, q:1 },
+  { s:'14:10', e:'14:40', n:'함덕 잠수함', m:'30분 · 네이버 예약가 대인 28,000 / 소인 23,000 · 희망팀만', lat:33.5430, lng:126.6690, q:1 },
+  { s:'14:10', e:'15:30', n:'함덕해수욕장, 델문도카페', m:'나머지는 델문도', lat:33.5434, lng:126.6700 },
+  { s:'15:50', e:'17:00', n:'제주레포츠랜드', m:'카트 1회 약 10분 · 단거리 25,000 / 장거리 35,000 (연이어 체험시 50%할인)', lat:33.4642, lng:126.6537, q:1 },
+  { s:'17:00', e:'17:30', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
+  { s:'18:30', e:'20:00', n:'김치찜 (저녁식사)', m:'돼지고기 김치찜으로 저녁' },
+ ]},
+ { date:'2026-09-10', label:'9/10 (목)', color:'var(--d4)', events:[
+  { s:'08:30', e:'09:30', n:'진정성 / 새우리 포장', m:'딱새우김밥 7,500 / 새우리모듬튀김 6,500 / 오리지널 골드 밀크티 8,500 · 새우리 064-900-2527 예약 · 진정성-밀크티', lat:33.4880, lng:126.4810, q:1 },
+  { s:'10:00', e:'10:20', n:'체크아웃' },
+  { s:'10:20', e:'10:40', n:'도두동 무지개 해안도로', m:'단체사진', lat:33.5100, lng:126.4680 },
+  { s:'10:50', e:'11:20', n:'렌트카 반납' },
+  { s:'11:30', e:'12:30', n:'공항 - 면세', lat:33.5066, lng:126.4929 },
+  { s:'13:15', e:'14:30', n:'서울로 출발' },
+ ]},
+];
+// ===== 끝 =====
+
+const KST = () => new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hm  = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmt = ev => ev.s ? `${ev.s} ~ ${ev.e}` : `~ ${ev.e}`;
+
+// 각 이벤트에 절대 시각 부여
+const ALL = [];
+DAYS.forEach((d,di) => d.events.forEach((ev,i) => {
+  const s = ev.s || '00:00';
+  ev.start = new Date(`${d.date}T${s}:00+09:00`); ev.end = new Date(`${d.date}T${ev.e}:00+09:00`);
+  if (ev.end <= ev.start) ev.end = new Date(ev.start.getTime() + 30*60000);
+  ev.di = di; ALL.push(ev);
+}));
+
+function status(now) {
+  const cur = ALL.filter(e => e.start <= now && now < e.end);
+  const next = ALL.filter(e => e.start > now).sort((a,b)=>a.start-b.start)[0];
+  return { cur, next };
+}
+
+const $now = document.getElementById('now');
+function renderNow() {
+  const now = KST(); const {cur,next} = status(now);
+  document.getElementById('clock').textContent = `${ymd(now)} ${hm(now)} (KST)`;
+  const dayColor = cur[0] ? DAYS[cur[0].di].color : next ? DAYS[next.di].color : '#ddd';
+  $now.style.borderLeftColor = dayColor;
+  const line = e => `<div class="title">${e.n}</div><div class="time">${DAYS[e.di].label} ${fmt(e)}</div>${e.m?`<div class="note">${e.m}</div>`:''}`;
+  if (cur.length) {
+    $now.innerHTML = `<div class="label">NOW · 지금 하는 일정</div>` + cur.map(line).join('<hr style="border:0;border-top:1px solid #eee">')
+      + (next ? `<div class="next">다음 → <b>${next.n}</b> ${DAYS[next.di].label} ${fmt(next)}</div>` : '');
+  } else if (next) {
+    const mins = Math.round((next.start-now)/60000), h = Math.floor(mins/60), m = mins%60;
+    const left = mins > 1440 ? `D-${Math.ceil(mins/1440)}` : h ? `${h}시간 ${m}분 후` : `${m}분 후`;
+    $now.innerHTML = `<div class="label">NEXT · ${left}</div>` + line(next);
+  } else {
+    $now.innerHTML = `<div class="label">여행 끝 🎉</div><div class="title">수고했어요!</div>`;
+  }
+  document.querySelectorAll('.ev').forEach((el,i) => {
+    const e = ALL[i]; el.classList.toggle('past', e.end <= now); el.classList.toggle('now', cur.includes(e));
+  });
+}
+
+// 지도
+const map = L.map('map').setView([33.38, 126.53], 10);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+const dayHex = ['#f28c5b','#3bb08f','#e0b93a','#9b6fd8'];
+const markers = [];
+DAYS.forEach((d,di) => { let k=0; d.events.forEach(ev => {
+  if (ev.lat == null) return; k++;
+  const icon = L.divIcon({className:'', html:`<div class="pin" style="border-color:${dayHex[di]};color:${dayHex[di]}">${k}</div>`, iconSize:[26,26], iconAnchor:[13,13]});
+  ev.marker = L.marker([ev.lat, ev.lng], {icon}).addTo(map)
+    .bindPopup(`<b>${ev.n}</b>${ev.q?' <small>(위치 대략)</small>':''}<br>${d.label} ${fmt(ev)}${ev.m?`<br><small>${ev.m}</small>`:''}<br><a target="_blank" href="https://map.naver.com/p/search/${encodeURIComponent(ev.n.replace(/\s*\(.*\)/,''))}">네이버지도</a>`);
+  markers.push(ev.marker);
+});});
+if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
+
+// 탭 + 일정 목록
+const $tabs = document.getElementById('tabs'), $days = document.getElementById('days');
+DAYS.forEach((d,di) => {
+  const b = document.createElement('button'); b.textContent = d.label; b.style.background = d.color;
+  b.onclick = () => show(di); $tabs.appendChild(b);
+  const sec = document.createElement('section'); sec.className = 'day';
+  sec.innerHTML = d.events.map(ev => `<div class="ev" style="border-left:6px solid ${dayHex[di]}"><div class="t">${fmt(ev)}</div><div><div class="n">${ev.n}${ev.lat!=null?' 📍':''}</div>${ev.m?`<div class="m">${ev.m}</div>`:''}</div></div>`).join('');
+  $days.appendChild(sec);
+});
+// 클릭 → 지도 이동 (ALL 순서 = DOM 순서)
+document.querySelectorAll('.ev').forEach((el,i) => el.onclick = () => { const e = ALL[i]; if (e.marker) { map.setView([e.lat,e.lng], 14); e.marker.openPopup(); window.scrollTo({top:0,behavior:'smooth'}); } });
+function show(di) {
+  $tabs.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on', i===di));
+  $days.querySelectorAll('.day').forEach((s,i)=>s.classList.toggle('on', i===di));
+}
+// 오늘 날짜의 탭 기본 선택, 아니면 첫날
+const today = ymd(KST()); show(Math.max(0, DAYS.findIndex(d => d.date === today)));
+renderNow(); setInterval(renderNow, 30000);
+</script>
+</body>
+</html>
