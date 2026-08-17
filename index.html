@@ -54,6 +54,13 @@
   #wx .d .i { font-size:1.5rem; } #wx .d .t { font-weight:700; } #wx .d small { color:var(--muted); }
   #wx .msg { font-size:.8rem; color:var(--muted); padding:8px; }
   .leaflet-popup-content .act a { display:inline-block; margin:6px 6px 0 0; padding:4px 8px; border-radius:6px; background:#f0f0f0; text-decoration:none; color:#222; font-size:.85rem; }
+  #planb { margin:14px 0; background:#fff; border-radius:12px; padding:10px 14px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+  #planb summary { cursor:pointer; font-weight:700; }
+  #planb .warn { color:#c0392b; font-size:.85rem; margin:6px 0; }
+  #planb .alt { display:grid; grid-template-columns:1fr auto; gap:6px 10px; padding:8px 0; border-top:1px solid #eee; font-size:.9rem; align-items:center; }
+  #planb .alt small { color:var(--muted); display:block; }
+  #planb .alt a { font-size:.8rem; text-decoration:none; background:#f0f0f0; border-radius:6px; padding:3px 7px; color:#222; margin-left:4px; white-space:nowrap; }
+  .tabs button.all { flex:0 0 auto; background:#e5e5e5; }
   #install { display:none; margin:8px auto 0; font-size:.8rem; color:var(--muted); text-align:center; }
   .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
 </style>
@@ -64,6 +71,7 @@
   <section id="now"></section>
   <div id="wx"><div class="msg">날씨 불러오는 중…</div></div>
   <div id="map"></div>
+  <details id="planb"><summary>☔ 비 올 때 플랜 B (실내 대체지)</summary><div id="planbBody"></div></details>
   <nav class="tabs" id="tabs"></nav>
   <section id="days"></section>
   <section id="budget">
@@ -172,11 +180,11 @@ function renderNow() {
 const map = L.map('map').setView([33.38, 126.53], 10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
 const dayHex = ['#f28c5b','#3bb08f','#e0b93a','#9b6fd8'];
-const markers = [];
-DAYS.forEach((d,di) => { let k=0; d.events.forEach(ev => {
-  if (ev.lat == null) return; k++;
+const dayLayers = DAYS.map(() => L.layerGroup());
+DAYS.forEach((d,di) => { let k=0; const pts=[]; d.events.forEach(ev => {
+  if (ev.lat == null) return; k++; pts.push([ev.lat, ev.lng]);
   const icon = L.divIcon({className:'', html:`<div class="pin" style="border-color:${dayHex[di]};color:${dayHex[di]}">${k}</div>`, iconSize:[26,26], iconAnchor:[13,13]});
-  ev.marker = L.marker([ev.lat, ev.lng], {icon}).addTo(map)
+  ev.marker = L.marker([ev.lat, ev.lng], {icon}).addTo(dayLayers[di])
     .bindPopup(() => {
       const nm = ev.n.replace(/\s*\(.*\)/,'');
       const acts = [
@@ -187,9 +195,17 @@ DAYS.forEach((d,di) => { let k=0; d.events.forEach(ev => {
       ].join('');
       return `<b>${ev.n}</b>${ev.q?' <small>(위치 대략)</small>':''}<br>${d.label} ${fmt(ev)}${ev.m?`<br><small>${ev.m}</small>`:''}<div class="act">${acts}</div>`;
     }, {maxWidth:280});
-  markers.push(ev.marker);
-});});
-if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
+});
+  // 동선: 같은 지점 연속 중복 제거 후 순서대로 연결
+  const line = pts.filter((p,i) => !i || p[0]!==pts[i-1][0] || p[1]!==pts[i-1][1]);
+  L.polyline(line, {color:dayHex[di], weight:3, opacity:.7, dashArray:'6 6'}).addTo(dayLayers[di]);
+});
+function showMapDay(di) { // di === -1 → 전체
+  dayLayers.forEach((g,i) => (di===-1 || i===di) ? g.addTo(map) : map.removeLayer(g));
+  const shown = di===-1 ? dayLayers : [dayLayers[di]];
+  const b = L.featureGroup(shown.flatMap(g => g.getLayers())).getBounds();
+  if (b.isValid()) map.fitBounds(b.pad(0.15));
+}
 
 // 탭 + 일정 목록
 const $tabs = document.getElementById('tabs'), $days = document.getElementById('days');
@@ -202,13 +218,35 @@ DAYS.forEach((d,di) => {
 });
 // 클릭 → 지도 이동 (ALL 순서 = DOM 순서)
 document.querySelectorAll('.ev').forEach((el,i) => el.onclick = () => { const e = ALL[i]; if (e.marker) { map.setView([e.lat,e.lng], 14); e.marker.openPopup(); window.scrollTo({top:0,behavior:'smooth'}); } });
+const $all = document.createElement('button'); $all.textContent = '전체'; $all.className = 'all'; $all.onclick = () => { showMapDay(-1); $tabs.querySelectorAll('button').forEach(b=>b.classList.remove('on')); $all.classList.add('on'); }; $tabs.appendChild($all);
 function show(di) {
   $tabs.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on', i===di));
   $days.querySelectorAll('.day').forEach((s,i)=>s.classList.toggle('on', i===di));
+  showMapDay(di);
 }
 // 오늘 날짜의 탭 기본 선택, 아니면 첫날
 const today = ymd(KST()); show(Math.max(0, DAYS.findIndex(d => d.date === today)));
 renderNow(); setInterval(renderNow, 30000);
+
+// ===== 플랜 B (실내 대체지) =====
+const PLANB = [
+ { n:'아르떼뮤지엄 제주', area:'애월(서쪽)', m:'미디어아트, 1.5시간. 아이도 좋아함', lat:33.4113, lng:126.3402 },
+ { n:'제주항공우주박물관', area:'안덕(서남)', m:'실내 넓고 체험 많음, 아이 최적', lat:33.3128, lng:126.3005 },
+ { n:'오설록 티뮤지엄 · 이니스프리하우스', area:'안덕(서남)', m:'실내 카페·전시, 곶자왈 근처', lat:33.3060, lng:126.2895 },
+ { n:'넥슨컴퓨터박물관', area:'제주시 노형', m:'게임 체험, 초등 이상 강추', lat:33.4740, lng:126.4830 },
+ { n:'국립제주박물관', area:'제주시 동쪽', m:'무료, 어린이박물관 있음', lat:33.5138, lng:126.5490 },
+ { n:'제주해녀박물관', area:'구좌(동쪽)', m:'함덕에서 20분, 조용함', lat:33.5417, lng:126.8175 },
+ { n:'아쿠아플라넷 제주', area:'성산(동쪽 끝)', m:'대형 아쿠아리움, 반나절 코스', lat:33.4326, lng:126.9270 },
+ { n:'여미지식물원', area:'중문', m:'실내 온실, 운정이네·천지연 근처', lat:33.2517, lng:126.4160 },
+ { n:'테디베어뮤지엄 제주', area:'중문', m:'아이 취향, 실내', lat:33.2450, lng:126.4120 },
+];
+document.getElementById('planbBody').innerHTML = `<div class="warn" id="planbWarn" style="display:none"></div>` + PLANB.map(p =>
+  `<div class="alt"><div>${p.n} <small>${p.area} · ${p.m}</small></div><div><a target="_blank" href="https://map.kakao.com/link/to/${encodeURIComponent(p.n)},${p.lat},${p.lng}">🚗</a><a target="_blank" href="https://map.naver.com/p/search/${encodeURIComponent(p.n)}">🔍</a></div></div>`).join('');
+function planBAlert(days) { // days: ['9/8 (화) 90%', ...]
+  const w = document.getElementById('planbWarn'); if (!days.length) return;
+  w.style.display = 'block'; w.textContent = '⚠️ 강수확률 70% 이상: ' + days.join(', ') + ' — 실내 대안 검토!';
+  document.getElementById('planb').open = true;
+}
 
 // ===== 날씨 (Open-Meteo, 키 불필요) =====
 (async () => {
@@ -222,6 +260,7 @@ renderNow(); setInterval(renderNow, 30000);
     if (!idx.length) { idx = D.time.map((_,i)=>i).slice(0,7); note = `<div class="msg">여행일 예보는 8월 말부터 나와요. 지금 제주 날씨 ↓</div>`; }
     $wx.innerHTML = note + idx.map(i => `<div class="d"><small>${D.time[i].slice(5).replace('-','/')}</small><div class="i">${WMO(D.weather_code[i])}</div><div class="t">${Math.round(D.temperature_2m_max[i])}° <small>/ ${Math.round(D.temperature_2m_min[i])}°</small></div><small>☔ ${D.precipitation_probability_max[i]}%</small></div>`).join('');
     localStorage.setItem('jeju-wx', $wx.innerHTML);
+    planBAlert(idx.filter(i => trip.includes(D.time[i]) && D.precipitation_probability_max[i] >= 70).map(i => `${DAYS.find(d=>d.date===D.time[i]).label} ${D.precipitation_probability_max[i]}%`));
   } catch (e) { $wx.innerHTML = localStorage.getItem('jeju-wx') || '<div class="msg">날씨 정보를 불러올 수 없어요 (오프라인?)</div>'; }
 })();
 
