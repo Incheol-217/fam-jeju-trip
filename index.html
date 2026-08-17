@@ -62,6 +62,7 @@
   #planb .alt a { font-size:.8rem; text-decoration:none; background:#f0f0f0; border-radius:6px; padding:3px 7px; color:#222; margin-left:4px; white-space:nowrap; }
   .tabs button.all { flex:0 0 auto; background:#e5e5e5; }
   #install { display:none; margin:8px auto 0; font-size:.8rem; color:var(--muted); text-align:center; }
+  .pin.home { width:32px; height:32px; line-height:28px; font-size:1.1rem; border-color:#c0392b; }
   .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
 </style>
 </head>
@@ -86,6 +87,7 @@
 <script>
 // ===== 일정 데이터 (여기만 고치면 됨) =====
 // lat/lng 없으면 지도엔 안 찍히고 목록에만 나옴. ?: 대략적인 위치 → 확인 필요.
+const HOME = { n:'숙소 패밀리가든빌리지', lat:33.4845, lng:126.4212, tel:'070-4468-1612', addr:'제주시 우령서로16길 54-22' };
 const DAYS = [
  { date:'2026-09-07', label:'9/7 (월)', color:'var(--d1)', events:[
   { s:'',      e:'06:30', n:'김포공항 집결' },
@@ -96,35 +98,35 @@ const DAYS = [
   { s:'12:40', e:'14:10', n:'애월 랜디스도넛', tel:'064-799-0610', lat:33.4626, lng:126.3103, q:1 },
   { s:'12:40', e:'14:10', n:'도치돌 알파카 목장', tel:'064-799-6690', m:'애월읍 도치돌길 303 · 1시간30분 · 입장료 15,000', lat:33.4180, lng:126.3950, q:1 },
   { s:'14:30', e:'15:30', n:'은혜전복 (점심식사)', tel:'0507-1432-9060', m:'애월읍 애월로1길 24-3 · 전복돌솥밥·전복뚝배기·전복물회 17,000', lat:33.4795, lng:126.4090, q:1 },
-  { s:'16:00', e:'16:00', n:'체크인' },
-  { s:'16:00', e:'18:00', n:'숙소 패밀리가든빌리지 (수영)', tel:'070-4468-1612', m:'제주시 우령서로16길 54-22 · 숙소 풀장에서 물놀이', lat:33.4845, lng:126.4212 },
+  { s:'16:00', e:'16:00', n:'체크인', home:1 },
+  { s:'16:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 물놀이', home:1 },
   { s:'16:00', e:'18:00', n:'하귀농협하나로마트', m:'저녁 장보기', lat:33.4770, lng:126.4045, q:1 },
-  { s:'18:00', e:'20:00', n:'바베큐 (저녁식사)', m:'숯·그릴 사용료 4인 4만원 / 추가 1인 5천원' },
+  { s:'18:00', e:'20:00', n:'바베큐 (저녁식사)', home:1, m:'숯·그릴 사용료 4인 4만원 / 추가 1인 5천원' },
  ]},
  { date:'2026-09-08', label:'9/8 (화)', color:'var(--d2)', events:[
-  { s:'09:30', e:'10:00', n:'숙소 출발' },
+  { s:'09:30', e:'10:00', n:'숙소 출발', home:1 },
   { s:'10:00', e:'12:00', n:'아르떼 키즈카페', tel:'1899-5008', m:'아르떼뮤지엄 어림비로 478 · 2시간 · 30,000 / 보호자 12,000 · 선택관광(2그룹)', lat:33.4030, lng:126.3465, q:1 },
   { s:'10:00', e:'12:00', n:'곶자왈 도립공원', tel:'064-792-6047', m:'대정읍 에듀시티로 178 · 1시간 · 입장료 1,000 · 선택관광(2그룹)', lat:33.2920, lng:126.2844 },
   { s:'12:20', e:'13:30', n:'운정이네 중문본점 (점심식사)', tel:'0507-1350-3883', m:'서귀포시 중산간서로 726 · 순살갈치조림+전복돌솥밥+옥돔구이 25,000 (전복돌솥밥 15,000)', lat:33.2636, lng:126.4378 },
   { s:'14:00', e:'15:00', n:'천지연폭포', m:'40분 · 성인 2,000 / 소인 1,000', lat:33.2470, lng:126.5580 },
   { s:'15:30', e:'17:00', n:'매일올레시장', m:'구경하고 먹고 포장하기 / 달인수산 회포장(얼음포장 가능)', lat:33.2503, lng:126.5630 },
-  { s:'17:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
-  { s:'19:00', e:'20:30', n:'회포장 (저녁식사)', m:'포장해 온 음식으로 저녁' },
+  { s:'17:00', e:'18:00', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이', home:1 },
+  { s:'19:00', e:'20:30', n:'회포장 (저녁식사)', home:1, m:'포장해 온 음식으로 저녁' },
  ]},
  { date:'2026-09-09', label:'9/9 (수)', color:'var(--d3)', events:[
-  { s:'09:30', e:'10:00', n:'숙소 출발' },
+  { s:'09:30', e:'10:00', n:'숙소 출발', home:1 },
   { s:'10:00', e:'12:00', n:'아침미소목장', tel:'064-727-2545', m:'제주시 첨단동길 160-20 · 2시간 · 입장료 없음, 체험비 발생', lat:33.4601, lng:126.5705 },
   { s:'12:30', e:'14:00', n:'고집돌우럭 함덕점 (점심식사)', tel:'0507-1353-6061', m:'조천읍 신북로 491-9 2층 · 산해진미 中 33,000', lat:33.5405, lng:126.6660, q:1 },
   { s:'12:30', e:'14:00', n:'선물고팡 기념품샵', lat:33.5420, lng:126.6680, q:1 },
   { s:'14:10', e:'14:40', n:'함덕 잠수함', tel:'064-783-1334', m:'조함해안로 378 · 30분 · 네이버 예약가 대인 28,000 / 소인 23,000 · 희망팀만', lat:33.5430, lng:126.6690, q:1 },
   { s:'14:10', e:'15:30', n:'함덕해수욕장, 델문도카페', tel:'064-702-0007', m:'델문도 조함해안로 519-10 · 나머지는 델문도', lat:33.5426, lng:126.6704 },
   { s:'15:50', e:'17:00', n:'제주레포츠랜드', tel:'064-784-8800', m:'조천읍 와흘상서2길 47 · 카트 1회 약 10분 · 단거리 25,000 / 장거리 35,000 (연이어 체험시 50%할인)', lat:33.4642, lng:126.6537, q:1 },
-  { s:'17:00', e:'17:30', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이' },
-  { s:'18:30', e:'20:00', n:'김치찜 (저녁식사)', m:'돼지고기 김치찜으로 저녁' },
+  { s:'17:00', e:'17:30', n:'숙소 (수영)', m:'숙소 풀장에서 짧은 물놀이', home:1 },
+  { s:'18:30', e:'20:00', n:'김치찜 (저녁식사)', home:1, m:'돼지고기 김치찜으로 저녁' },
  ]},
  { date:'2026-09-10', label:'9/10 (목)', color:'var(--d4)', events:[
   { s:'08:30', e:'09:30', n:'진정성 / 새우리 포장', tel:'064-900-2527', m:'새우리 제주시 무근성7길 21 (김밥·튀김, 예약) / 진정성 종점 이호 서해안로 124 (밀크티, 064-747-7674) · 딱새우김밥 7,500 / 모듬튀김 6,500 / 골드 밀크티 8,500', lat:33.5146, lng:126.5205 },
-  { s:'10:00', e:'10:20', n:'체크아웃' },
+  { s:'10:00', e:'10:20', n:'체크아웃', home:1 },
   { s:'10:20', e:'10:40', n:'도두동 무지개 해안도로', m:'단체사진', lat:33.5100, lng:126.4680 },
   { s:'10:50', e:'11:20', n:'렌트카 반납' },
   { s:'11:30', e:'12:30', n:'공항 - 면세', lat:33.5066, lng:126.4929 },
@@ -181,7 +183,10 @@ const map = L.map('map').setView([33.38, 126.53], 10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
 const dayHex = ['#f28c5b','#3bb08f','#e0b93a','#9b6fd8'];
 const dayLayers = DAYS.map(() => L.layerGroup());
+const homeMarker = L.marker([HOME.lat, HOME.lng], {icon: L.divIcon({className:'', html:'<div class="pin home">🏠</div>', iconSize:[32,32], iconAnchor:[16,16]}), zIndexOffset:1000}).addTo(map)
+  .bindPopup(`<b>🏠 ${HOME.n}</b><br><small>${HOME.addr}</small><div class="act"><a href="tel:${HOME.tel}">📞 ${HOME.tel}</a><a target="_blank" href="https://map.kakao.com/link/to/${encodeURIComponent(HOME.n)},${HOME.lat},${HOME.lng}">🚗 카카오내비</a><a href="nmap://route/car?dlat=${HOME.lat}&dlng=${HOME.lng}&dname=${encodeURIComponent(HOME.n)}&appname=fam-jeju-trip">🚗 네이버</a></div>`, {maxWidth:280});
 DAYS.forEach((d,di) => { let k=0; const pts=[]; d.events.forEach(ev => {
+  if (ev.home) { ev.lat = HOME.lat; ev.lng = HOME.lng; ev.marker = homeMarker; pts.push([HOME.lat, HOME.lng]); return; }
   if (ev.lat == null) return; k++; pts.push([ev.lat, ev.lng]);
   const icon = L.divIcon({className:'', html:`<div class="pin" style="border-color:${dayHex[di]};color:${dayHex[di]}">${k}</div>`, iconSize:[26,26], iconAnchor:[13,13]});
   ev.marker = L.marker([ev.lat, ev.lng], {icon}).addTo(dayLayers[di])
@@ -213,7 +218,7 @@ DAYS.forEach((d,di) => {
   const b = document.createElement('button'); b.textContent = d.label; b.style.background = d.color;
   b.onclick = () => show(di); $tabs.appendChild(b);
   const sec = document.createElement('section'); sec.className = 'day';
-  sec.innerHTML = d.events.map(ev => `<div class="ev" style="border-left:6px solid ${dayHex[di]}"><div class="t">${fmt(ev)}</div><div><div class="n">${ev.n}${ev.lat!=null?' 📍':''}</div>${ev.m?`<div class="m">${ev.m}</div>`:''}</div></div>`).join('');
+  sec.innerHTML = d.events.map(ev => `<div class="ev" style="border-left:6px solid ${dayHex[di]}"><div class="t">${fmt(ev)}</div><div><div class="n">${ev.n}${ev.home?' 🏠':ev.lat!=null?' 📍':''}</div>${ev.m?`<div class="m">${ev.m}</div>`:''}</div></div>`).join('');
   $days.appendChild(sec);
 });
 // 클릭 → 지도 이동 (ALL 순서 = DOM 순서)

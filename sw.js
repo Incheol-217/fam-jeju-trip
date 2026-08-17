@@ -1,5 +1,5 @@
 // ponytail: cache-first for everything, network refresh for own files. Bump VERSION to force update.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const APP = ['./', './index.html', './manifest.json', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
 // 제주 전역 타일 z10~12 미리 저장 (약 60장) — 나머지 줌은 보면서 자동 저장
 function jejuTiles() {
