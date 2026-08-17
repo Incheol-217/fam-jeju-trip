@@ -28,6 +28,21 @@
   .ev.past { opacity:.5; } .ev.now { outline:3px solid #ff7a59; }
   .ev .t { font-variant-numeric:tabular-nums; color:var(--muted); font-size:.85rem; }
   .ev .n { font-weight:600; } .ev .m { font-size:.82rem; color:var(--muted); margin-top:2px; }
+  #budget { margin-top:24px; }
+  #budget h2 { font-size:1.1rem; margin:0 0 6px; }
+  #budget .hint { font-size:.8rem; color:var(--muted); margin-bottom:8px; }
+  #budget table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; font-size:.85rem; }
+  #budget th, #budget td { padding:6px 4px; border-bottom:1px solid #eee; text-align:right; white-space:nowrap; }
+  #budget th:first-child, #budget td:first-child { text-align:left; white-space:normal; }
+  #budget input { width:84px; border:1px solid #ddd; border-radius:6px; padding:4px; text-align:right; font:inherit; }
+  #budget input.n { width:38px; }
+  #budget tr.day td { background:#f3f3f3; font-weight:700; text-align:left; }
+  #budget .sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:10px; }
+  #budget .sum div { background:#fff; border-radius:10px; padding:10px 12px; }
+  #budget .sum b { display:block; font-size:1.15rem; }
+  #budget .sum small { color:var(--muted); }
+  #budget button { border:0; border-radius:8px; padding:6px 10px; background:#eee; cursor:pointer; font:inherit; }
+  .wrap { overflow-x:auto; }
   .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
 </style>
 </head>
@@ -38,6 +53,12 @@
   <div id="map"></div>
   <nav class="tabs" id="tabs"></nav>
   <section id="days"></section>
+  <section id="budget">
+    <h2>💰 예산 계산기</h2>
+    <div class="hint">3가정 · 성인 6명 + 아이 1명. 단가/인원은 직접 수정 가능 (이 기기에 저장됨). 빈칸(0)은 미정 항목이라 채워 넣으세요. <button id="bReset">초기화</button></div>
+    <div class="wrap"><table id="bTable"></table></div>
+    <div class="sum" id="bSum"></div>
+  </section>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -166,6 +187,73 @@ function show(di) {
 // 오늘 날짜의 탭 기본 선택, 아니면 첫날
 const today = ymd(KST()); show(Math.max(0, DAYS.findIndex(d => d.date === today)));
 renderNow(); setInterval(renderNow, 30000);
+
+// ===== 예산 =====
+// a/c: 성인/소인 단가, na/nc: 인원, f: 정액(팀 전체)
+const BUDGET_DEFAULT = [
+ { day:'공통', items:[
+  { n:'항공권 (왕복, 7명)', f:0 }, { n:'숙소 3박', f:0 }, { n:'렌트카 3일 + 보험', f:0 }, { n:'주유 / 기타', f:0 },
+ ]},
+ { day:'9/7 (월)', items:[
+  { n:'섬누들 아침', a:11000, c:11000, na:6, nc:1 },
+  { n:'도치돌 알파카 목장', a:15000, c:15000, na:6, nc:1 },
+  { n:'은혜전복 점심', a:17000, c:17000, na:6, nc:1 },
+  { n:'하나로마트 장보기 (BBQ+아침)', f:0 },
+  { n:'바베큐 숯·그릴 (4인 4만 + 3인 추가)', f:55000 },
+ ]},
+ { day:'9/8 (화)', items:[
+  { n:'아르떼 키즈카페 (아이+보호자)', a:12000, c:30000, na:2, nc:1 },
+  { n:'곶자왈 도립공원', a:1000, c:1000, na:4, nc:0 },
+  { n:'운정이네 점심 (소인=전복돌솥밥)', a:25000, c:15000, na:6, nc:1 },
+  { n:'천지연폭포', a:2000, c:1000, na:6, nc:1 },
+  { n:'매일올레시장 회포장·간식', f:0 },
+ ]},
+ { day:'9/9 (수)', items:[
+  { n:'아침미소목장 체험비', f:0 },
+  { n:'고집돌우럭 산해진미 中 (33,000 × 3)', f:99000 },
+  { n:'함덕 잠수함 (희망팀)', a:28000, c:23000, na:2, nc:1 },
+  { n:'델문도카페', f:0 },
+  { n:'제주레포츠랜드 카트 (단거리)', a:25000, c:0, na:6, nc:0 },
+  { n:'김치찜 재료', f:0 },
+ ]},
+ { day:'9/10 (목)', items:[
+  { n:'진정성/새우리 포장 (김밥7,500·튀김6,500·밀크티8,500)', f:130000 },
+  { n:'공항 면세·기념품', f:0 },
+ ]},
+];
+const BKEY = 'jeju2026-budget-v1';
+let B = JSON.parse(localStorage.getItem(BKEY) || 'null') || structuredClone(BUDGET_DEFAULT);
+const won = n => n.toLocaleString('ko-KR') + '원';
+const cost = it => (it.a||0)*(it.na||0) + (it.c||0)*(it.nc||0) + (it.f||0);
+const $bt = document.getElementById('bTable'), $bs = document.getElementById('bSum');
+function renderBudget() {
+  let rows = `<tr><th>항목</th><th>성인단가</th><th>소인단가</th><th>성인</th><th>소인</th><th>정액</th><th>합계</th></tr>`;
+  B.forEach((d,di) => {
+    rows += `<tr class="day"><td colspan="7">${d.day}</td></tr>`;
+    d.items.forEach((it,ii) => {
+      const inp = (k,cls='') => `<input class="${cls}" type="number" min="0" data-k="${di}.${ii}.${k}" value="${it[k]||0}">`;
+      rows += `<tr data-r="${di}.${ii}"><td>${it.n}</td><td>${inp('a')}</td><td>${inp('c')}</td><td>${inp('na','n')}</td><td>${inp('nc','n')}</td><td>${inp('f')}</td><td><b>${won(cost(it))}</b></td></tr>`;
+    });
+  });
+  $bt.innerHTML = rows; renderSum();
+}
+function renderSum() {
+  const total = B.flatMap(d=>d.items).reduce((s,it)=>s+cost(it),0);
+  const heads = 7; // 성인 6 + 아이 1
+  $bs.innerHTML = `
+    <div><small>총 예산</small><b>${won(total)}</b></div>
+    <div><small>3등분 (가정당)</small><b>${won(Math.round(total/3))}</b></div>
+    <div><small>인원비례 · 성인2 가정</small><b>${won(Math.round(total/heads*2))}</b><small>2가정</small></div>
+    <div><small>인원비례 · 성인2+아이1 가정</small><b>${won(Math.round(total/heads*3))}</b><small>1가정</small></div>`;
+  localStorage.setItem(BKEY, JSON.stringify(B));
+}
+$bt.addEventListener('input', e => {
+  const [di,ii,k] = e.target.dataset.k.split('.'); const it = B[di].items[ii]; it[k] = Number(e.target.value) || 0;
+  $bt.querySelector(`[data-r="${di}.${ii}"] td:last-child b`).textContent = won(cost(it));
+  renderSum();
+});
+document.getElementById('bReset').onclick = () => { if (!confirm('예산을 기본값으로 되돌릴까요?')) return; B = structuredClone(BUDGET_DEFAULT); renderBudget(); };
+renderBudget();
 </script>
 </body>
 </html>
