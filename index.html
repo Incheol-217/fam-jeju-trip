@@ -34,10 +34,11 @@
   .ev.past { opacity:.5; } .ev.now { outline:3px solid #ff7a59; }
   .ev .t { font-variant-numeric:tabular-nums; color:var(--muted); font-size:.85rem; }
   .ev .n { font-weight:600; } .ev .m { font-size:.82rem; color:var(--muted); margin-top:2px; }
-  #wx { display:flex; gap:6px; overflow-x:auto; margin:0 0 14px; }
+  #wx { margin:0 0 14px; }
+  #wx .row { display:flex; gap:6px; overflow-x:auto; }
   #wx .d { flex:1; min-width:78px; background:#fff; border-radius:10px; padding:8px 4px; text-align:center; font-size:.8rem; box-shadow:0 1px 6px rgba(0,0,0,.06); }
   #wx .d .i { font-size:1.5rem; } #wx .d .t { font-weight:700; } #wx .d small { color:var(--muted); }
-  #wx .msg { font-size:.8rem; color:var(--muted); padding:8px; }
+  #wx .msg { font-size:.8rem; color:var(--muted); padding:0 4px 6px; }
   .leaflet-popup-content .act a { display:inline-block; margin:6px 6px 0 0; padding:4px 8px; border-radius:6px; background:#f0f0f0; text-decoration:none; color:#222; font-size:.85rem; }
   #planb { margin:14px 0; background:#fff; border-radius:12px; padding:10px 14px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
   #planb summary { cursor:pointer; font-weight:700; }
@@ -242,7 +243,7 @@ function planBAlert(days) { // days: ['9/8 (화) 90%', ...]
     const trip = DAYS.map(d=>d.date); let idx = D.time.map((t,i)=>trip.includes(t)?i:-1).filter(i=>i>=0);
     let note = '';
     if (!idx.length) { idx = D.time.map((_,i)=>i).slice(0,7); note = `<div class="msg">여행일 예보는 8월 말부터 나와요. 지금 제주 날씨 ↓</div>`; }
-    $wx.innerHTML = note + idx.map(i => `<div class="d"><small>${D.time[i].slice(5).replace('-','/')}</small><div class="i">${WMO(D.weather_code[i])}</div><div class="t">${Math.round(D.temperature_2m_max[i])}° <small>/ ${Math.round(D.temperature_2m_min[i])}°</small></div><small>☔ ${D.precipitation_probability_max[i]}%</small></div>`).join('');
+    $wx.innerHTML = note + '<div class="row">' + idx.map(i => `<div class="d"><small>${D.time[i].slice(5).replace('-','/')}</small><div class="i">${WMO(D.weather_code[i])}</div><div class="t">${Math.round(D.temperature_2m_max[i])}° <small>/ ${Math.round(D.temperature_2m_min[i])}°</small></div><small>☔ ${D.precipitation_probability_max[i]}%</small></div>`).join('') + '</div>';
     localStorage.setItem('jeju-wx', $wx.innerHTML);
     planBAlert(idx.filter(i => trip.includes(D.time[i]) && D.precipitation_probability_max[i] >= 70).map(i => `${DAYS.find(d=>d.date===D.time[i]).label} ${D.precipitation_probability_max[i]}%`));
   } catch (e) { $wx.innerHTML = localStorage.getItem('jeju-wx') || '<div class="msg">날씨 정보를 불러올 수 없어요 (오프라인?)</div>'; }
