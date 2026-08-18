@@ -1,5 +1,5 @@
 // ponytail: cache-first for everything, network refresh for own files. Bump VERSION to force update.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const APP = ['./', './index.html', './manifest.json', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
 // 제주 전역 타일 z10~12 미리 저장 (약 60장) — 나머지 줌은 보면서 자동 저장
 function jejuTiles() {
@@ -26,7 +26,7 @@ self.addEventListener('fetch', e => {
     const c = await caches.open(VERSION);
     const hit = await c.match(e.request);
     if (own) { // 자기 파일: 네트워크 우선(최신 일정), 실패 시 캐시
-      try { const r = await fetch(e.request); c.put(e.request, r.clone()); return r; } catch (_) { return hit; }
+      try { const r = await fetch(e.request, {cache:'no-cache'}); c.put(e.request, r.clone()); return r; } catch (_) { return hit; }
     }
     if (hit) return hit;
     try { const r = await fetch(e.request); if (r.ok) c.put(e.request, r.clone()); return r; } catch (_) { return hit; }

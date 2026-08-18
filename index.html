@@ -253,6 +253,12 @@ function planBAlert(days) { // days: ['9/8 (화) 90%', ...]
 
 // ===== 오프라인 / PWA =====
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+// 홈화면 앱: 백그라운드에서 돌아올 때 5분 이상 지났으면 새로고침 (최신 일정 반영)
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 5*60*1000) location.reload();
+});
 if (!matchMedia('(display-mode: standalone)').matches && !navigator.standalone) document.getElementById('install').style.display = 'block';
 
 </script>
