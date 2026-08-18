@@ -47,13 +47,15 @@
   #planb .alt small { color:var(--muted); display:block; }
   #planb .alt a { font-size:.8rem; text-decoration:none; background:#f0f0f0; border-radius:6px; padding:3px 7px; color:#222; margin-left:4px; white-space:nowrap; }
   .tabs button.all { flex:0 0 auto; background:#e5e5e5; }
+  .links { display:flex; gap:8px; justify-content:center; margin:6px 0 0; }
+  .links a { display:inline-block; padding:8px 14px; border-radius:20px; background:#1dc16a; color:#fff; font-weight:700; text-decoration:none; font-size:.9rem; }
   #install { display:none; margin:8px auto 0; font-size:.8rem; color:var(--muted); text-align:center; }
   .pin.home { width:32px; height:32px; line-height:28px; font-size:1.1rem; border-color:#c0392b; }
   .pin { background:#fff; border:2px solid #333; border-radius:50%; width:26px; height:26px; line-height:22px; text-align:center; font-weight:700; font-size:.8rem; }
 </style>
 </head>
 <body>
-<header><h1>🍊 2026 제주도 가족여행</h1><div class="clock" id="clock"></div><div id="install">📱 홈 화면에 추가: iPhone은 공유 → "홈 화면에 추가", Android는 메뉴 → "홈 화면에 추가"</div></header>
+<header><h1>🍊 2026 제주도 가족여행</h1><div class="clock" id="clock"></div><div class="links"><a id="bandLink" href="https://band.us/band/67749007" target="_blank">📷 가족 밴드 (사진)</a></div><div id="install">📱 홈 화면에 추가: iPhone은 공유 → "홈 화면에 추가", Android는 메뉴 → "홈 화면에 추가"</div></header>
 <main>
   <section id="now"></section>
   <div id="wx"><div class="msg">날씨 불러오는 중…</div></div>
